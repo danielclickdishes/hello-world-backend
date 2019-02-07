@@ -1,0 +1,30 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - $(aws ecr get-login --no-include-email --region $AWS_REGION)
+      - VERSION=1.2
+      - IMAGE_TAG=latest
+      - IMAGE_NAME=hello-world-backend
+      - IMAGE_NAMESPACE=danielclickdishes
+      - IMAGE_FULLNAME=danielclickdishes/hello-world-backend
+      - REPOSITORY_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_FULLNAME
+      - echo $CODEBUILD_SOURCE_VERSION
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...
+      - docker build --build-arg NPM_TOKEN -t $IMAGE_FULLNAME:$IMAGE_TAG .
+      - docker tag $IMAGE_FULLNAME:$IMAGE_TAG $REPOSITORY_URI:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image to ECR...
+      - docker push $REPOSITORY_URI:$IMAGE_TAG
+      - echo Writing image definitions file...
+      - printf '[{"name":"%s","imageUri":"%s"}]' $IMAGE_NAME $REPOSITORY_URI:$IMAGE_TAG > imagedefinitions.json
+artifacts:
+  files:
+    - imagedefinitions.json
